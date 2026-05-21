@@ -19,7 +19,7 @@ CASE
 END
 """
 
-## ============================================================
+# ============================================================
 # TOP SELLING PRODUCTS
 # ============================================================
 
@@ -32,6 +32,8 @@ def get_top_selling_data(
     limit,
 
     filter_type,
+
+    company_code,
 
     month=None,
 
@@ -47,6 +49,8 @@ def get_top_selling_data(
     month_filter = ""
 
     year_filter = ""
+
+    company_filter = ""
 
     custom_date_filter = ""
 
@@ -89,6 +93,16 @@ def get_top_selling_data(
         """
 
     # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
+    # ============================================================
     # CUSTOM DATE FILTER
     # ============================================================
 
@@ -126,11 +140,15 @@ def get_top_selling_data(
 
         pd.fItemName LIKE :search
 
+        AND ISNULL(it.fTotQty, 0) > 0
+
         {date_filter}
 
         {month_filter}
 
         {year_filter}
+
+        {company_filter}
 
         {custom_date_filter}
 
@@ -158,7 +176,9 @@ def get_top_selling_data(
 
         "offset": offset,
 
-        "limit": limit
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if month:
@@ -188,141 +208,294 @@ def get_top_selling_data(
             for row in result
         ]
 # ============================================================
-# dead stock and slow moving
-# ==========================================================
+# DEAD STOCK AND SLOW MOVING
+# ============================================================
 
+def get_dead_stock_data(
 
+    search,
 
-def get_dead_stock_data(search, offset, limit, start_date=None, end_date=None):
+    offset,
+
+    limit,
+
+    company_code,
+
+    start_date=None,
+
+    end_date=None
+):
 
     custom_date_filter = ""
 
+    company_filter = ""
+
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
+    # ============================================================
+    # DATE FILTER
+    # ============================================================
+
     if start_date and end_date:
+
         custom_date_filter = """
         AND it.fDate >= :start_date
         AND it.fDate < DATEADD(DAY, 1, :end_date)
         """
+
     else:
+
         custom_date_filter = """
         AND it.fDate >= DATEADD(DAY, -30, GETDATE())
         """
 
     query = text(f"""
+
     SELECT 
+
         pd.fItemcode AS Fitemcode,
+
         pd.fItemName AS FitemName,
+
         {CATEGORY_CASE} AS category,
 
-        SUM(CASE 
-            WHEN it.fDate IS NOT NULL
-            THEN ISNULL(it.fTotQty, 0)
-            ELSE 0 
-        END) AS recent_sales,
+        SUM(
+
+            CASE 
+
+                WHEN it.fDate IS NOT NULL
+
+                THEN ISNULL(it.fTotQty, 0)
+
+                ELSE 0 
+
+            END
+
+        ) AS recent_sales,
 
         CASE
-            WHEN SUM(CASE 
-                WHEN it.fDate IS NOT NULL
-                THEN ISNULL(it.fTotQty, 0)
-                ELSE 0 
-            END) = 0
+
+            WHEN SUM(
+
+                CASE 
+
+                    WHEN it.fDate IS NOT NULL
+
+                    THEN ISNULL(it.fTotQty, 0)
+
+                    ELSE 0 
+
+                END
+
+            ) = 0
+
             THEN 'Dead Stock'
+
             ELSE 'Slow Moving'
+
         END AS stock_status
 
     FROM Item pd
 
     LEFT JOIN ItemTransaction it 
         ON pd.fItemcode = it.fItemcode
+
+        {company_filter}
+
         {custom_date_filter}
 
-    WHERE pd.fItemName LIKE :search
-    AND pd.fItemcode IS NOT NULL
-    AND LTRIM(RTRIM(pd.fItemcode)) <> ''
-    AND pd.fItemName NOT LIKE '%GOLD%'
-    AND pd.fItemName NOT LIKE '%SILVER%'
-    AND pd.fItemName NOT LIKE '%OLD%'
-    AND pd.fItemName NOT LIKE '%ROUND OFF%'
-    AND pd.fItemName NOT LIKE '%CONVERSION%'
+    WHERE 
+
+        pd.fItemName LIKE :search
+
+        AND pd.fItemcode IS NOT NULL
+
+        AND LTRIM(RTRIM(pd.fItemcode)) <> ''
+
+        AND pd.fItemName NOT LIKE '%GOLD%'
+
+        AND pd.fItemName NOT LIKE '%SILVER%'
+
+        AND pd.fItemName NOT LIKE '%OLD%'
+
+        AND pd.fItemName NOT LIKE '%ROUND OFF%'
+
+        AND pd.fItemName NOT LIKE '%CONVERSION%'
 
     GROUP BY 
+
         pd.fItemcode,
+
         pd.fItemName,
+
         {CATEGORY_CASE}
 
     HAVING 
-        SUM(CASE 
-            WHEN it.fDate IS NOT NULL
-            THEN ISNULL(it.fTotQty, 0)
-            ELSE 0 
-        END) <= 5
 
-    ORDER BY recent_sales ASC, pd.fItemName
+        SUM(
 
-    OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+            CASE 
+
+                WHEN it.fDate IS NOT NULL
+
+                THEN ISNULL(it.fTotQty, 0)
+
+                ELSE 0 
+
+            END
+
+        ) <= 5
+
+    ORDER BY 
+
+        recent_sales ASC,
+
+        pd.fItemName
+
+    OFFSET :offset ROWS
+
+    FETCH NEXT :limit ROWS ONLY
+
     """)
 
     params = {
+
         "search": f"%{search}%",
+
         "offset": offset,
-        "limit": limit
+
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if start_date and end_date:
+
         params["start_date"] = start_date
+
         params["end_date"] = end_date
 
+    logger.info("Dead stock filter params: %s", params)
+
     with engine.connect() as conn:
+
         result = conn.execute(query, params)
-        return [dict(row._mapping) for row in result]
+
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
+## ============================================================
+# TREND ANALYSIS
 # ============================================================
-# trend analysis
-# ==========================================================
 
+def get_trend_data(
 
+    search,
 
-def get_trend_data(search, offset, limit, filter_type):
+    offset,
+
+    limit,
+
+    filter_type,
+
+    company_code
+):
 
     current_filter = ""
+
     previous_filter = ""
 
+    company_filter = ""
+
+    # ============================================================
+    # FILTER LOGIC
+    # ============================================================
+
     if filter_type == "monthly":
-        current_filter = "it.fDate >= DATEADD(MONTH, -1, GETDATE())"
+
+        current_filter = """
+        it.fDate >= DATEADD(MONTH, -1, GETDATE())
+        """
+
         previous_filter = """
         it.fDate >= DATEADD(MONTH, -2, GETDATE())
         AND it.fDate < DATEADD(MONTH, -1, GETDATE())
         """
 
     elif filter_type == "weekly":
-        current_filter = "it.fDate >= DATEADD(DAY, -7, GETDATE())"
+
+        current_filter = """
+        it.fDate >= DATEADD(DAY, -7, GETDATE())
+        """
+
         previous_filter = """
         it.fDate >= DATEADD(DAY, -14, GETDATE())
         AND it.fDate < DATEADD(DAY, -7, GETDATE())
         """
 
     else:
+
         current_filter = "1=1"
+
         previous_filter = "1=0"
 
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
     query = text(f"""
+
     SELECT
+
         pd.fItemcode AS Fitemcode,
+
         pd.fItemName AS FitemName,
+
         {CATEGORY_CASE} AS category,
 
         SUM(
+
             CASE
+
                 WHEN {current_filter}
+
                 THEN ISNULL(it.fTotQty, 0)
+
                 ELSE 0
+
             END
+
         ) AS current_sales,
 
         SUM(
+
             CASE
+
                 WHEN {previous_filter}
+
                 THEN ISNULL(it.fTotQty, 0)
+
                 ELSE 0
+
             END
+
         ) AS previous_sales
 
     FROM ItemTransaction it WITH (NOLOCK)
@@ -330,32 +503,70 @@ def get_trend_data(search, offset, limit, filter_type):
     JOIN Item pd
         ON it.fItemcode = pd.fItemcode
 
-    WHERE pd.fItemName LIKE :search
+    WHERE 
+
+        pd.fItemName LIKE :search
+
+        {company_filter}
 
     GROUP BY
+
         pd.fItemcode,
+
         pd.fItemName,
+
         {CATEGORY_CASE}
+
+    HAVING 
+
+        SUM(
+
+            CASE
+
+                WHEN {current_filter}
+
+                THEN ISNULL(it.fTotQty, 0)
+
+                ELSE 0
+
+            END
+
+        ) > 0
 
     ORDER BY current_sales DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
+
     """)
 
+    params = {
+
+        "search": f"%{search}%",
+
+        "offset": offset,
+
+        "limit": limit,
+
+        "company_code": company_code
+    }
+
+    logger.info("Trend analysis filter params: %s", params)
+
     with engine.connect() as conn:
-        result = conn.execute(query, {
-            "search": f"%{search}%",
-            "offset": offset,
-            "limit": limit
-        })
 
-        return [dict(row._mapping) for row in result]
+        result = conn.execute(query, params)
+
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
 # ============================================================
-# forecasting 
-# ==========================================================
-
-
+# FORECASTING
+# ============================================================
 
 def get_forecast_data(
 
@@ -367,12 +578,16 @@ def get_forecast_data(
 
     filter_type,
 
+    company_code,
+
     start_date=None,
 
     end_date=None
 ):
 
     date_filter = ""
+
+    company_filter = ""
 
     custom_date_filter = ""
 
@@ -397,6 +612,16 @@ def get_forecast_data(
         """
 
         forecast_days = 30
+
+    # ==========================================
+    # COMPANY FILTER
+    # ==========================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
 
     # ==========================================
     # CUSTOM DATE RANGE
@@ -439,7 +664,11 @@ def get_forecast_data(
 
         pd.fItemName LIKE :search
 
+        AND ISNULL(it.fTotQty, 0) > 0
+
         {date_filter}
+
+        {company_filter}
 
         {custom_date_filter}
 
@@ -456,6 +685,7 @@ def get_forecast_data(
     ORDER BY avg_sales DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
@@ -468,7 +698,9 @@ def get_forecast_data(
 
         "limit": limit,
 
-        "forecast_days": forecast_days
+        "forecast_days": forecast_days,
+
+        "company_code": company_code
     }
 
     if start_date and end_date:
@@ -476,6 +708,8 @@ def get_forecast_data(
         params["start_date"] = start_date
 
         params["end_date"] = end_date
+
+    logger.info("Forecast filter params: %s", params)
 
     with engine.connect() as conn:
 
@@ -488,20 +722,34 @@ def get_forecast_data(
             for row in result.fetchall()
         ]
 # ============================================================
-# purchase patterns
-# ==========================================================
+# PURCHASE PATTERNS
+# ============================================================
+
 def get_purchase_patterns(
+
     search,
+
     offset,
+
     limit,
+
     filter_type,
+
+    company_code,
+
     start_date=None,
+
     end_date=None
 ):
 
     date_filter = ""
 
-    # Weekly filter
+    company_filter = ""
+
+    # ============================================================
+    # WEEKLY FILTER
+    # ============================================================
+
     if filter_type == "weekly":
 
         date_filter = """
@@ -511,7 +759,10 @@ def get_purchase_patterns(
 
         """
 
-    # Monthly filter
+    # ============================================================
+    # MONTHLY FILTER
+    # ============================================================
+
     elif filter_type == "monthly":
 
         date_filter = """
@@ -521,7 +772,10 @@ def get_purchase_patterns(
 
         """
 
-    # Custom date filter
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
+
     elif start_date and end_date:
 
         date_filter = """
@@ -532,9 +786,23 @@ def get_purchase_patterns(
 
         """
 
-    # ==========================================
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+
+        AND it1.fCompCode = :company_code
+
+        AND it2.fCompCode = :company_code
+
+        """
+
+    # ============================================================
     # MAIN DATA QUERY
-    # ==========================================
+    # ============================================================
 
     query = text(f"""
 
@@ -566,6 +834,8 @@ def get_purchase_patterns(
 
         AND ISNULL(it2.fTotQty, 0) > 0
 
+        {company_filter}
+
         {date_filter}
 
     GROUP BY
@@ -577,13 +847,14 @@ def get_purchase_patterns(
     ORDER BY pair_count DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
 
-    # ==========================================
+    # ============================================================
     # COUNT QUERY
-    # ==========================================
+    # ============================================================
 
     count_query = text(f"""
 
@@ -615,6 +886,8 @@ def get_purchase_patterns(
 
             AND ISNULL(it2.fTotQty, 0) > 0
 
+            {company_filter}
+
             {date_filter}
 
         GROUP BY
@@ -633,15 +906,22 @@ def get_purchase_patterns(
 
         "offset": offset,
 
-        "limit": limit
+        "limit": limit,
+
+        "company_code": company_code
     }
 
-    # Add custom date params only if provided
+    # ============================================================
+    # CUSTOM DATE PARAMS
+    # ============================================================
+
     if start_date and end_date:
 
         params["start_date"] = start_date
 
         params["end_date"] = end_date
+
+    logger.info("Purchase pattern filter params: %s", params)
 
     with engine.connect() as conn:
 
@@ -652,7 +932,9 @@ def get_purchase_patterns(
         )
 
         records = [
+
             dict(row._mapping)
+
             for row in result
         ]
 
@@ -669,28 +951,73 @@ def get_purchase_patterns(
             "total_records": total_records
         }
 # ============================================================
-# category performance
-# ==========================================================
+# CATEGORY PERFORMANCE
+# ============================================================
 
-def get_category_performance(search, offset, limit, filter_type, start_date=None, end_date=None):
+def get_category_performance(
+
+    search,
+
+    offset,
+
+    limit,
+
+    filter_type,
+
+    company_code,
+
+    start_date=None,
+
+    end_date=None
+):
 
     date_filter = ""
+
+    company_filter = ""
+
     custom_date_filter = ""
 
+    # ============================================================
+    # FILTER LOGIC
+    # ============================================================
+
     if filter_type == "weekly":
-        date_filter = "AND it.fDate >= DATEADD(DAY, -7, GETDATE())"
+
+        date_filter = """
+        AND it.fDate >= DATEADD(DAY, -7, GETDATE())
+        """
 
     elif filter_type == "monthly":
-        date_filter = "AND it.fDate >= DATEADD(MONTH, -1, GETDATE())"
+
+        date_filter = """
+        AND it.fDate >= DATEADD(MONTH, -1, GETDATE())
+        """
+
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
 
     if start_date and end_date:
+
         custom_date_filter = """
         AND it.fDate >= :start_date
         AND it.fDate < DATEADD(DAY, 1, :end_date)
         """
 
     query = text(f"""
+
     SELECT
+
         {CATEGORY_CASE} AS category,
 
         COUNT(DISTINCT pd.fItemcode) AS total_designs,
@@ -702,37 +1029,68 @@ def get_category_performance(search, offset, limit, filter_type, start_date=None
     JOIN Item pd
         ON it.fItemcode = pd.fItemcode
 
-    WHERE pd.fItemName LIKE :search
-    {date_filter}
-    {custom_date_filter}
+    WHERE
+
+        pd.fItemName LIKE :search
+
+        AND ISNULL(it.fTotQty, 0) > 0
+
+        {date_filter}
+
+        {company_filter}
+
+        {custom_date_filter}
 
     GROUP BY
+
         {CATEGORY_CASE}
+
+    HAVING SUM(ISNULL(it.fTotQty, 0)) > 0
 
     ORDER BY total_orders DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
+
     """)
 
     params = {
+
         "search": f"%{search}%",
+
         "offset": offset,
-        "limit": limit
+
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if start_date and end_date:
+
         params["start_date"] = start_date
+
         params["end_date"] = end_date
 
+    logger.info("Category performance filter params: %s", params)
+
     with engine.connect() as conn:
+
         result = conn.execute(query, params)
-        return [dict(row._mapping) for row in result]
+
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
 # ============================================================
-# seasonal insights
-# ==========================================================
+# SEASONAL INSIGHTS
+# ============================================================
 
 def get_seasonal_insights(
+
+    company_code,
 
     month,
 
@@ -747,7 +1105,13 @@ def get_seasonal_insights(
 
     month_filter = ""
 
+    company_filter = ""
+
     custom_date_filter = ""
+
+    # ============================================================
+    # MONTH FILTER
+    # ============================================================
 
     if month:
 
@@ -755,12 +1119,30 @@ def get_seasonal_insights(
         AND DATENAME(MONTH, it.fDate) = :month
         """
 
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
+
     if start_date and end_date:
 
         custom_date_filter = """
         AND it.fDate >= :start_date
         AND it.fDate < DATEADD(DAY, 1, :end_date)
         """
+
+    # ============================================================
+    # MAIN QUERY
+    # ============================================================
 
     query = text(f"""
 
@@ -783,6 +1165,8 @@ def get_seasonal_insights(
 
         {month_filter}
 
+        {company_filter}
+
         {custom_date_filter}
 
     GROUP BY
@@ -791,20 +1175,29 @@ def get_seasonal_insights(
 
         {CATEGORY_CASE}
 
+    HAVING SUM(ISNULL(it.fTotQty, 0)) > 0
+
     ORDER BY
 
         total_orders DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
+
+    # ============================================================
+    # PARAMS
+    # ============================================================
 
     params = {
 
         "offset": offset,
 
-        "limit": limit
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if month:
@@ -817,20 +1210,39 @@ def get_seasonal_insights(
 
         params["end_date"] = end_date
 
+    logger.info(
+        "Seasonal insights filter params: %s",
+        params
+    )
+
+    # ============================================================
+    # EXECUTE QUERY
+    # ============================================================
+
     with engine.connect() as conn:
 
-        result = conn.execute(query, params)
+        result = conn.execute(
+            query,
+            params
+        )
 
-        return [dict(row._mapping) for row in result]
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
 # ============================================================
-# ai auto insights
-# ==========================================================
+# AI AUTO INSIGHTS
+# ============================================================
 
 def get_auto_insights_data(
 
     offset,
 
     limit,
+
+    company_code,
 
     filter_type=None,
 
@@ -841,7 +1253,12 @@ def get_auto_insights_data(
 
     date_filter = ""
 
-    # Weekly filter
+    company_filter = ""
+
+    # ============================================================
+    # WEEKLY FILTER
+    # ============================================================
+
     if filter_type == "weekly":
 
         date_filter = """
@@ -851,7 +1268,10 @@ def get_auto_insights_data(
 
         """
 
-    # Monthly filter
+    # ============================================================
+    # MONTHLY FILTER
+    # ============================================================
+
     elif filter_type == "monthly":
 
         date_filter = """
@@ -861,7 +1281,10 @@ def get_auto_insights_data(
 
         """
 
-    # Custom date filter
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
+
     elif start_date and end_date:
 
         date_filter = """
@@ -871,6 +1294,22 @@ def get_auto_insights_data(
         AND it.fDate < DATEADD(DAY, 1, :end_date)
 
         """
+
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+
+        AND it.fCompCode = :company_code
+
+        """
+
+    # ============================================================
+    # MAIN DATA QUERY
+    # ============================================================
 
     data_query = text(f"""
 
@@ -905,6 +1344,8 @@ def get_auto_insights_data(
 
         WHERE Itemcode IS NOT NULL
 
+        AND fCompcode = :company_code
+
         GROUP BY Itemcode
 
     ) s
@@ -913,6 +1354,8 @@ def get_auto_insights_data(
     WHERE
 
         ISNULL(it.fTotQty, 0) > 0
+
+        {company_filter}
 
         {date_filter}
 
@@ -926,12 +1369,19 @@ def get_auto_insights_data(
 
         s.current_stock
 
+    HAVING SUM(ISNULL(it.fTotQty, 0)) > 0
+
     ORDER BY total_orders DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
+
+    # ============================================================
+    # COUNT QUERY
+    # ============================================================
 
     count_query = text(f"""
 
@@ -943,15 +1393,23 @@ def get_auto_insights_data(
 
         ISNULL(it.fTotQty, 0) > 0
 
+        {company_filter}
+
         {date_filter}
 
     """)
+
+    # ============================================================
+    # PARAMS
+    # ============================================================
 
     params = {
 
         "offset": offset,
 
-        "limit": limit
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if start_date and end_date:
@@ -959,6 +1417,15 @@ def get_auto_insights_data(
         params["start_date"] = start_date
 
         params["end_date"] = end_date
+
+    logger.info(
+        "Auto insights filter params: %s",
+        params
+    )
+
+    # ============================================================
+    # EXECUTE QUERIES
+    # ============================================================
 
     with engine.connect() as conn:
 

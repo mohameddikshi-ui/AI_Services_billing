@@ -20,6 +20,8 @@ def get_demand_level(avg):
 
 def calculate_inventory(
 
+    company_code,
+
     page,
 
     pageSize,
@@ -55,6 +57,8 @@ def calculate_inventory(
         month,
 
         year,
+
+        company_code,
 
         start_date,
 
@@ -119,30 +123,40 @@ def calculate_inventory(
 
         result.append({
 
-            "product_id": item["Fitemcode"],
+            "product_id":
+            item["Fitemcode"],
 
-            "product_name": item["FitemName"],
+            "product_name":
+            item["FitemName"],
 
-            "category": item.get("category"),
+            "category":
+            item.get("category"),
 
-            "current_stock": current_stock,
+            "current_stock":
+            current_stock,
 
-            "historical_sales": historical_sales,
+            "historical_sales":
+            historical_sales,
 
-            "average_daily_sales": round(
+            "average_daily_sales":
+            round(
                 avg_daily_sales,
                 2
             ),
 
-            "required_stock": required_stock,
+            "required_stock":
+            required_stock,
 
-            "recommended_stock": recommended_stock,
+            "recommended_stock":
+            recommended_stock,
 
-            "demand_level": get_demand_level(
+            "demand_level":
+            get_demand_level(
                 avg_daily_sales
             ),
 
-            "stock_status": stock_status
+            "stock_status":
+            stock_status
         })
 
     return success_response(
@@ -160,14 +174,22 @@ def calculate_inventory(
 
         extra={
 
-            "filter": filter_type,
+            "company_code":
+            company_code,
 
-            "month": month,
+            "filter":
+            filter_type,
 
-            "year": year,
+            "month":
+            month,
 
-            "start_date": start_date,
+            "year":
+            year,
 
-            "end_date": end_date
+            "start_date":
+            start_date,
+
+            "end_date":
+            end_date
         }
     )

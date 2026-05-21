@@ -1,4 +1,5 @@
 from sqlalchemy import text
+
 from app.core.db import engine
 
 
@@ -16,31 +17,50 @@ END
 
 
 def get_alert_data(
+
     search,
+
     offset,
+
     limit,
+
+    company_code,
+
     filter_type="monthly",
+
     start_date=None,
+
     end_date=None
 ):
 
     date_filter = ""
 
-    # Weekly filter
+    company_filter = ""
+
+    # ============================================================
+    # WEEKLY FILTER
+    # ============================================================
+
     if filter_type == "weekly":
 
         date_filter = """
         AND it.fDate >= DATEADD(DAY, -7, GETDATE())
         """
 
-    # Monthly filter
+    # ============================================================
+    # MONTHLY FILTER
+    # ============================================================
+
     elif filter_type == "monthly":
 
         date_filter = """
         AND it.fDate >= DATEADD(MONTH, -1, GETDATE())
         """
 
-    # Custom date filter
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
+
     elif start_date and end_date:
 
         date_filter = """
@@ -48,9 +68,19 @@ def get_alert_data(
         AND it.fDate < DATEADD(DAY, 1, :end_date)
         """
 
-    # ==========================================
+    # ============================================================
+    # COMPANY FILTER
+    # ============================================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
+        """
+
+    # ============================================================
     # MAIN QUERY
-    # ==========================================
+    # ============================================================
 
     query = text(f"""
 
@@ -78,19 +108,32 @@ def get_alert_data(
     FROM Item pd
 
     LEFT JOIN (
+
         SELECT
+
             Itemcode,
+
             SUM(ISNULL(Qty, 0)) AS current_stock
+
         FROM Stock
+
         WHERE Itemcode IS NOT NULL
+
         AND LTRIM(RTRIM(Itemcode)) <> ''
+
+        AND fCompcode = :company_code
+
         GROUP BY Itemcode
+
     ) st
         ON pd.fItemcode = st.Itemcode
 
     LEFT JOIN ItemTransaction it
         ON pd.fItemcode = it.fItemcode
+
         {date_filter}
+
+        {company_filter}
 
     WHERE
 
@@ -110,16 +153,19 @@ def get_alert_data(
 
         {CATEGORY_CASE}
 
+    HAVING SUM(ISNULL(it.fTotQty, 0)) > 0
+
     ORDER BY recent_sales DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
 
-    # ==========================================
+    # ============================================================
     # COUNT QUERY
-    # ==========================================
+    # ============================================================
 
     count_query = text(f"""
 
@@ -133,7 +179,10 @@ def get_alert_data(
 
         LEFT JOIN ItemTransaction it
             ON pd.fItemcode = it.fItemcode
+
             {date_filter}
+
+            {company_filter}
 
         WHERE
 
@@ -151,13 +200,19 @@ def get_alert_data(
 
     """)
 
+    # ============================================================
+    # PARAMS
+    # ============================================================
+
     params = {
 
         "search": f"%{search}%" if search else "",
 
         "offset": offset,
 
-        "limit": limit
+        "limit": limit,
+
+        "company_code": company_code
     }
 
     if start_date and end_date:
@@ -166,13 +221,22 @@ def get_alert_data(
 
         params["end_date"] = end_date
 
+    # ============================================================
+    # EXECUTE QUERY
+    # ============================================================
+
     with engine.connect() as conn:
 
         # Fetch records
-        result = conn.execute(query, params)
+        result = conn.execute(
+            query,
+            params
+        )
 
         records = [
+
             dict(row._mapping)
+
             for row in result
         ]
 

@@ -4,15 +4,23 @@ from datetime import date
 
 from typing import Optional
 
+from sqlalchemy import text
+
+from app.core.db import engine
+
 from app.services.inventory_service import calculate_inventory
 
+
 router = APIRouter(
+
     tags=["Inventory recommendation"]
 )
 
 
 @router.get("/inventory")
 def get_inventory(
+
+    company_code: str,
 
     page: int = 1,
 
@@ -31,7 +39,70 @@ def get_inventory(
     end_date: Optional[date] = None
 ):
 
+    # ============================================================
+    # EMPTY COMPANY CODE VALIDATION
+    # ============================================================
+
+    if not company_code.strip():
+
+        return {
+
+            "success": False,
+
+            "message": "Company code is required.",
+
+            "error_code": "COMPANY_CODE_REQUIRED"
+        }
+
+    # ============================================================
+    # COMPANY EXIST CHECK
+    # ============================================================
+
+    check_query = text("""
+
+    SELECT COUNT(*) AS total
+
+    FROM COMPANY
+
+    WHERE LTRIM(RTRIM(fCompCode)) = :company_code
+
+    """)
+
+    with engine.connect() as conn:
+
+        result = conn.execute(
+
+            check_query,
+
+            {
+
+                "company_code": company_code
+            }
+
+        ).scalar()
+
+    # ============================================================
+    # INVALID COMPANY
+    # ============================================================
+
+    if result == 0:
+
+        return {
+
+            "success": False,
+
+            "message": "Invalid company name.",
+
+            "error_code": "INVALID_COMPANY_CODE"
+        }
+
+    # ============================================================
+    # CALL SERVICE
+    # ============================================================
+
     return calculate_inventory(
+
+        company_code,
 
         page,
 

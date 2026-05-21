@@ -35,6 +35,8 @@ def get_inventory_data(
 
     year=None,
 
+    company_code=None,
+
     start_date=None,
 
     end_date=None
@@ -45,6 +47,8 @@ def get_inventory_data(
     month_filter = ""
 
     year_filter = ""
+
+    company_filter = ""
 
     custom_date_filter = ""
 
@@ -90,6 +94,16 @@ def get_inventory_data(
 
         year_filter = """
         AND YEAR(it.fDate) = :year
+        """
+
+    # ==========================================
+    # COMPANY FILTER
+    # ==========================================
+
+    if company_code:
+
+        company_filter = """
+        AND it.fCompCode = :company_code
         """
 
     # ==========================================
@@ -139,6 +153,8 @@ def get_inventory_data(
 
         AND LTRIM(RTRIM(Itemcode)) <> ''
 
+        AND fCompcode = :company_code
+
         GROUP BY Itemcode
 
     ) st
@@ -152,6 +168,8 @@ def get_inventory_data(
         {month_filter}
 
         {year_filter}
+
+        {company_filter}
 
         {custom_date_filter}
 
@@ -178,6 +196,7 @@ def get_inventory_data(
     ORDER BY historical_sales DESC
 
     OFFSET :offset ROWS
+
     FETCH NEXT :limit ROWS ONLY
 
     """)
@@ -190,7 +209,9 @@ def get_inventory_data(
 
         "limit": limit,
 
-        "period_days": period_days
+        "period_days": period_days,
+
+        "company_code": company_code
     }
 
     if month:

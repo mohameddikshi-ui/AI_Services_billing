@@ -24,6 +24,8 @@ def format_currency(amount):
 
 def get_top_selling(
 
+    company_code,
+
     page,
 
     pageSize,
@@ -41,10 +43,20 @@ def get_top_selling(
     end_date
 ):
 
+    # ============================================================
+    # PAGINATION
+    # ============================================================
+
     offset, limit = get_pagination(
+
         page,
+
         pageSize
     )
+
+    # ============================================================
+    # FETCH DATA
+    # ============================================================
 
     data = get_top_selling_data(
 
@@ -52,9 +64,11 @@ def get_top_selling(
 
         offset,
 
-        pageSize,
+        limit,
 
         filter_type,
+
+        company_code,
 
         month,
 
@@ -64,6 +78,10 @@ def get_top_selling(
 
         end_date
     )
+
+    # ============================================================
+    # RESPONSE BUILD
+    # ============================================================
 
     result = []
 
@@ -92,6 +110,10 @@ def get_top_selling(
             item["currency"]
         })
 
+    # ============================================================
+    # SUCCESS RESPONSE
+    # ============================================================
+
     return success_response(
 
         message=
@@ -103,12 +125,26 @@ def get_top_selling(
 
         pageSize=pageSize,
 
+        total_records=len(result),
+
         extra={
 
-            "filter": filter_type,
+            "company_code":
+            company_code,
 
-            "month": month,
+            "filter":
+            filter_type,
 
-            "year": year
+            "month":
+            month,
+
+            "year":
+            year,
+
+            "start_date":
+            start_date,
+
+            "end_date":
+            end_date
         }
     )
