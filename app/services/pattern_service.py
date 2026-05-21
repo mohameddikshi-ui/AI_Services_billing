@@ -13,6 +13,8 @@ from app.utils.response import (
 
 def analyze_purchase_patterns(
 
+    company_code,
+
     page,
 
     pageSize,
@@ -40,6 +42,8 @@ def analyze_purchase_patterns(
         limit,
 
         filter_type,
+
+        company_code,
 
         start_date,
 
@@ -113,7 +117,13 @@ def analyze_purchase_patterns(
 
     elif start_date and end_date:
 
-        analyzed_period = f"{start_date} to {end_date}"
+        analyzed_period = (
+            f"{start_date} to {end_date}"
+        )
+
+    # ==========================================
+    # FINAL RESPONSE
+    # ==========================================
 
     return success_response(
 
@@ -130,14 +140,22 @@ def analyze_purchase_patterns(
 
         extra={
 
-            "total_pages": total_pages,
+            "company_code":
+            company_code,
 
-            "filter": filter_type,
+            "total_pages":
+            total_pages,
 
-            "analyzed_period": analyzed_period,
+            "filter":
+            filter_type,
 
-            "start_date": start_date,
+            "analyzed_period":
+            analyzed_period,
 
-            "end_date": end_date
+            "start_date":
+            start_date,
+
+            "end_date":
+            end_date
         }
     )
