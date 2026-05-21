@@ -14,9 +14,9 @@ CASE
 END
 """
 
+# # ============================================================
+# TOP SELLING PRODUCTS
 # ============================================================
-# =top selling products
-# ==========================================================
 
 def get_top_selling_data(search, offset, limit, filter_type, start_date=None, end_date=None):
 
@@ -25,6 +25,7 @@ def get_top_selling_data(search, offset, limit, filter_type, start_date=None, en
 
     if filter_type == "weekly":
         date_filter = "AND it.fDate >= DATEADD(DAY, -7, GETDATE())"
+
     elif filter_type == "monthly":
         date_filter = "AND it.fDate >= DATEADD(MONTH, -1, GETDATE())"
 
@@ -36,13 +37,20 @@ def get_top_selling_data(search, offset, limit, filter_type, start_date=None, en
 
     query = text(f"""
     SELECT 
+
         it.fItemcode AS fItemcode,
+
         pd.fItemName AS FitemName,
+
         {CATEGORY_CASE} AS category,
 
         SUM(ISNULL(it.fTotQty, 0)) AS total_qty,
+
         SUM(ISNULL(it.fGms, 0)) AS total_weight,
-        SUM(ISNULL(it.fAmount, 0)) AS total_sales
+
+        ROUND(SUM(ISNULL(it.fAmount, 0)), 2) AS total_sales,
+
+        'INR' AS currency
 
     FROM ItemTransaction it WITH (NOLOCK)
 
@@ -50,12 +58,17 @@ def get_top_selling_data(search, offset, limit, filter_type, start_date=None, en
         ON it.fItemcode = pd.fItemcode
 
     WHERE pd.fItemName LIKE :search
+
     {date_filter}
+
     {custom_date_filter}
 
     GROUP BY 
+
         it.fItemcode,
+
         pd.fItemName,
+
         {CATEGORY_CASE}
 
     ORDER BY SUM(ISNULL(it.fTotQty, 0)) DESC
@@ -64,18 +77,30 @@ def get_top_selling_data(search, offset, limit, filter_type, start_date=None, en
     """)
 
     params = {
+
         "search": f"%{search}%",
+
         "offset": offset,
+
         "limit": limit
     }
 
     if start_date and end_date:
+
         params["start_date"] = start_date
+
         params["end_date"] = end_date
 
     with engine.connect() as conn:
+
         result = conn.execute(query, params)
-        return [dict(row._mapping) for row in result]
+
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
 # ============================================================
 # dead stock and slow moving
 # ==========================================================
