@@ -14,68 +14,176 @@ CASE
 END
 """
 
+## ============================================================
+# TOP SELLING PRODUCTS
 # ============================================================
-# =top selling products
-# ==========================================================
 
-def get_top_selling_data(search, offset, limit, filter_type, start_date=None, end_date=None):
+def get_top_selling_data(
+
+    search,
+
+    offset,
+
+    limit,
+
+    filter_type,
+
+    month=None,
+
+    year=None,
+
+    start_date=None,
+
+    end_date=None
+):
 
     date_filter = ""
+
+    month_filter = ""
+
+    year_filter = ""
+
     custom_date_filter = ""
 
-    if filter_type == "weekly":
-        date_filter = "AND it.fDate >= DATEADD(DAY, -7, GETDATE())"
-    elif filter_type == "monthly":
-        date_filter = "AND it.fDate >= DATEADD(MONTH, -1, GETDATE())"
+    # ============================================================
+    # FILTER LOGIC
+    # ============================================================
+
+    if not month and not (start_date and end_date):
+
+        if filter_type == "weekly":
+
+            date_filter = """
+            AND it.fDate >= DATEADD(DAY, -7, GETDATE())
+            """
+
+        elif filter_type == "monthly":
+
+            date_filter = """
+            AND it.fDate >= DATEADD(MONTH, -1, GETDATE())
+            """
+
+    # ============================================================
+    # MONTH FILTER
+    # ============================================================
+
+    if month:
+
+        month_filter = """
+        AND DATENAME(MONTH, it.fDate) = :month
+        """
+
+    # ============================================================
+    # YEAR FILTER
+    # ============================================================
+
+    if year:
+
+        year_filter = """
+        AND YEAR(it.fDate) = :year
+        """
+
+    # ============================================================
+    # CUSTOM DATE FILTER
+    # ============================================================
 
     if start_date and end_date:
+
         custom_date_filter = """
         AND it.fDate >= :start_date
         AND it.fDate < DATEADD(DAY, 1, :end_date)
         """
 
     query = text(f"""
+
     SELECT 
+
         it.fItemcode AS fItemcode,
+
         pd.fItemName AS FitemName,
+
         {CATEGORY_CASE} AS category,
 
         SUM(ISNULL(it.fTotQty, 0)) AS total_qty,
+
         SUM(ISNULL(it.fGms, 0)) AS total_weight,
-        SUM(ISNULL(it.fAmount, 0)) AS total_sales
+
+        ROUND(SUM(ISNULL(it.fAmount, 0)), 2) AS total_sales,
+
+        'INR' AS currency
 
     FROM ItemTransaction it WITH (NOLOCK)
 
     JOIN Item pd 
         ON it.fItemcode = pd.fItemcode
 
-    WHERE pd.fItemName LIKE :search
-    {date_filter}
-    {custom_date_filter}
+    WHERE 
+
+        pd.fItemName LIKE :search
+
+        {date_filter}
+
+        {month_filter}
+
+        {year_filter}
+
+        {custom_date_filter}
 
     GROUP BY 
+
         it.fItemcode,
+
         pd.fItemName,
+
         {CATEGORY_CASE}
+
+    HAVING SUM(ISNULL(it.fTotQty, 0)) > 0
 
     ORDER BY SUM(ISNULL(it.fTotQty, 0)) DESC
 
-    OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY
+    OFFSET :offset ROWS
+
+    FETCH NEXT :limit ROWS ONLY
+
     """)
 
     params = {
+
         "search": f"%{search}%",
+
         "offset": offset,
+
         "limit": limit
     }
 
+    if month:
+
+        params["month"] = month
+
+    if year:
+
+        params["year"] = year
+
     if start_date and end_date:
+
         params["start_date"] = start_date
+
         params["end_date"] = end_date
 
+    print("\n📌 TOP SELLING FILTER PARAMS\n")
+
+    print(params)
+
     with engine.connect() as conn:
+
         result = conn.execute(query, params)
-        return [dict(row._mapping) for row in result]
+
+        return [
+
+            dict(row._mapping)
+
+            for row in result
+        ]
 # ============================================================
 # dead stock and slow moving
 # ==========================================================

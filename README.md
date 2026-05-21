@@ -59,7 +59,16 @@ ai-service/
 
 ---
 
-# Setup
+## Setup
+
+### Create venv
+
+python -m venv venv
+
+### Activate
+
+venv\Scripts\activate
+
 
 ## Install dependencies
 
