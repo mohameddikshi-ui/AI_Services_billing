@@ -1,5 +1,10 @@
+import logging
+
 from sqlalchemy import text
 from app.core.db import engine
+
+
+logger = logging.getLogger(__name__)
 
 
 CATEGORY_CASE = """
@@ -170,9 +175,7 @@ def get_top_selling_data(
 
         params["end_date"] = end_date
 
-    print("\n📌 TOP SELLING FILTER PARAMS\n")
-
-    print(params)
+    logger.info("Top selling filter params: %s", params)
 
     with engine.connect() as conn:
 

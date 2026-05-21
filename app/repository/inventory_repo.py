@@ -1,6 +1,11 @@
+import logging
+
 from sqlalchemy import text
 
 from app.core.db import engine
+
+
+logger = logging.getLogger(__name__)
 
 
 CATEGORY_CASE = """
@@ -202,9 +207,7 @@ def get_inventory_data(
 
         params["end_date"] = end_date
 
-    print("\n📌 INVENTORY FILTER PARAMS\n")
-
-    print(params)
+    logger.info("Inventory filter params: %s", params)
 
     with engine.connect() as conn:
 
