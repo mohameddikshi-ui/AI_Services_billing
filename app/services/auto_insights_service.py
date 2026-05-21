@@ -22,6 +22,8 @@ from app.constants.thresholds import (
 
 def generate_auto_insights(
 
+    company_code,
+
     page,
 
     pageSize,
@@ -33,39 +35,43 @@ def generate_auto_insights(
     end_date=None
 ):
 
-    # ==========================================
+    # ============================================================
     # PAGINATION
-    # ==========================================
+    # ============================================================
 
     offset, limit = get_pagination(
+
         page,
+
         pageSize
     )
 
-    # ==========================================
+    # ============================================================
     # FETCH DB DATA
-    # ==========================================
+    # ============================================================
 
     db_data = get_auto_insights_data(
 
-    offset,
+        offset,
 
-    limit,
-    
-    filter_type,
+        limit,
 
-    start_date,
+        company_code,
 
-    end_date
-)
+        filter_type,
+
+        start_date,
+
+        end_date
+    )
 
     data = db_data["records"]
 
     total_records = db_data["total_records"]
 
-    # ==========================================
+    # ============================================================
     # AI DYNAMIC ANALYTICS
-    # ==========================================
+    # ============================================================
 
     order_values = [
 
@@ -78,9 +84,9 @@ def generate_auto_insights(
 
     insights = []
 
-    # ==========================================
+    # ============================================================
     # INSIGHT GENERATION
-    # ==========================================
+    # ============================================================
 
     for item in data:
 
@@ -92,28 +98,34 @@ def generate_auto_insights(
             item.get("current_stock") or 0
         )
 
+        total_sales = float(
+            item.get("total_sales") or 0
+        )
+
         product_id = item.get("Fitemcode")
 
         product_name = item.get("FitemName")
 
         category = item.get("category")
 
-        # ==========================================
+        # ============================================================
         # DYNAMIC DEMAND SCORE
-        # ==========================================
+        # ============================================================
 
         demand_score = 0
 
         if max_orders > 0:
 
             demand_score = round(
+
                 (total_orders / max_orders) * 100,
+
                 2
             )
 
-        # ==========================================
+        # ============================================================
         # AI DEMAND CLASSIFICATION
-        # ==========================================
+        # ============================================================
 
         if (
 
@@ -184,38 +196,52 @@ def generate_auto_insights(
                 "Consider promotional visibility or refresh product exposure."
             )
 
-        # ==========================================
+        # ============================================================
         # FINAL INSIGHT OBJECT
-        # ==========================================
+        # ============================================================
 
         insights.append({
 
-            "product_id": product_id,
+            "product_id":
+            product_id,
 
-            "product_name": product_name,
+            "product_name":
+            product_name,
 
-            "category": category,
+            "category":
+            category,
 
-            "total_orders": total_orders,
+            "total_orders":
+            total_orders,
 
-            "current_stock": current_stock,
+            "total_sales":
+            round(total_sales, 2),
 
-            "demand_score": demand_score,
+            "current_stock":
+            current_stock,
 
-            "insight_type": insight_type,
+            "demand_score":
+            demand_score,
 
-            "priority": priority,
+            "insight_type":
+            insight_type,
 
-            "trend_strength": trend_strength,
+            "priority":
+            priority,
 
-            "message": message,
+            "trend_strength":
+            trend_strength,
 
-            "recommendation": recommendation
+            "message":
+            message,
+
+            "recommendation":
+            recommendation
         })
 
-    # ==========================================
+    # ============================================================
     # FINAL STANDARD RESPONSE
-    # ==========================================
+    # ============================================================
 
     return success_response(
 
@@ -232,10 +258,16 @@ def generate_auto_insights(
 
         extra={
 
-            "filter": filter_type,
+            "company_code":
+            company_code,
 
-            "start_date": start_date,
+            "filter":
+            filter_type,
 
-            "end_date": end_date
+            "start_date":
+            start_date,
+
+            "end_date":
+            end_date
         }
     )
