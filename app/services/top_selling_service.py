@@ -32,6 +32,10 @@ def get_top_selling(
 
     filter_type,
 
+    month,
+
+    year,
+
     start_date,
 
     end_date
@@ -51,6 +55,10 @@ def get_top_selling(
         pageSize,
 
         filter_type,
+
+        month,
+
+        year,
 
         start_date,
 
@@ -97,6 +105,10 @@ def get_top_selling(
 
         extra={
 
-            "filter": filter_type
+            "filter": filter_type,
+
+            "month": month,
+
+            "year": year
         }
     )
