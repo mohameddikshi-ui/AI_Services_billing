@@ -9,6 +9,8 @@ from app.utils.response import success_response
 
 def get_smart_alerts(
 
+    company_code,
+
     page,
 
     pageSize,
@@ -27,6 +29,10 @@ def get_smart_alerts(
         pageSize
     )
 
+    # ==========================================
+    # FETCH ALERT DATA
+    # ==========================================
+
     response = get_alert_data(
 
         search,
@@ -36,6 +42,8 @@ def get_smart_alerts(
         limit,
 
         filter_type,
+
+        company_code,
 
         start_date,
 
@@ -236,6 +244,9 @@ def get_smart_alerts(
         total_records=total_records,
 
         extra={
+
+            "company_code":
+            company_code,
 
             "total_pages":
             total_pages,
