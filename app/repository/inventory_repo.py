@@ -114,12 +114,9 @@ def get_inventory_data(
 
         COUNT(DISTINCT CAST(it.fDate AS DATE)) AS active_days,
 
-        CASE 
-            WHEN :period_days > 0
-            THEN SUM(ISNULL(it.fTotQty, 0)) * 1.0 /
-                 :period_days
-            ELSE 0
-        END AS avg_daily_sales
+        SUM(ISNULL(it.fTotQty, 0)) * 1.0 /
+        NULLIF(:period_days, 0)
+        AS avg_daily_sales
 
     FROM Item pd
 
