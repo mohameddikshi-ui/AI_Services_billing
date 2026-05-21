@@ -1,5 +1,11 @@
 .env
+.venv/
+.venv*/
 __pycache__/
 *.pyc
 app.log
 venv/
+logs/*
+!logs/.gitkeep
+*.log
+local.db
