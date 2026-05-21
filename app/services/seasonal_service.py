@@ -1,6 +1,10 @@
-from app.repository.sales_repo import get_seasonal_insights
+from app.repository.sales_repo import (
+    get_seasonal_insights
+)
 
-from app.utils.pagination import get_pagination
+from app.utils.pagination import (
+    get_pagination
+)
 
 from app.utils.response import (
     success_response
@@ -8,6 +12,8 @@ from app.utils.response import (
 
 
 def analyze_seasonal_insights(
+
+    company_code,
 
     page,
 
@@ -20,12 +26,24 @@ def analyze_seasonal_insights(
     end_date=None
 ):
 
+    # ============================================================
+    # PAGINATION
+    # ============================================================
+
     offset, limit = get_pagination(
+
         page,
+
         pageSize
     )
 
+    # ============================================================
+    # FETCH DB DATA
+    # ============================================================
+
     data = get_seasonal_insights(
+
+        company_code,
 
         month,
 
@@ -40,15 +58,19 @@ def analyze_seasonal_insights(
 
     result = []
 
+    # ============================================================
+    # SEASONAL ANALYSIS
+    # ============================================================
+
     for item in data:
 
         total_orders = int(
             item.get("total_orders") or 0
         )
 
-        # ==========================================
+        # ============================================================
         # DEMAND CLASSIFICATION
-        # ==========================================
+        # ============================================================
 
         if total_orders >= 1000:
 
@@ -66,9 +88,9 @@ def analyze_seasonal_insights(
 
             seasonal_trend = "LOW DEMAND"
 
-        # ==========================================
+        # ============================================================
         # DATA CONFIDENCE
-        # ==========================================
+        # ============================================================
 
         if total_orders >= 1000:
 
@@ -81,6 +103,10 @@ def analyze_seasonal_insights(
         else:
 
             data_confidence = "LOW"
+
+        # ============================================================
+        # FINAL RESPONSE OBJECT
+        # ============================================================
 
         result.append({
 
@@ -100,6 +126,10 @@ def analyze_seasonal_insights(
             data_confidence
         })
 
+    # ============================================================
+    # SUCCESS RESPONSE
+    # ============================================================
+
     return success_response(
 
         message=
@@ -115,10 +145,16 @@ def analyze_seasonal_insights(
 
         extra={
 
-            "month": month,
+            "company_code":
+            company_code,
 
-            "start_date": start_date,
+            "month":
+            month,
 
-            "end_date": end_date
+            "start_date":
+            start_date,
+
+            "end_date":
+            end_date
         }
     )
