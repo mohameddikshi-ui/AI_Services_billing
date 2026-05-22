@@ -131,10 +131,6 @@ def get_alert_data(
     LEFT JOIN ItemTransaction it
         ON pd.fItemcode = it.fItemcode
 
-        {date_filter}
-
-        {company_filter}
-
     WHERE
 
         (:search = '' OR pd.fItemName LIKE :search)
@@ -142,6 +138,10 @@ def get_alert_data(
         AND pd.fItemcode IS NOT NULL
 
         AND LTRIM(RTRIM(pd.fItemcode)) <> ''
+
+        {date_filter}
+
+        {company_filter}
 
     GROUP BY
 
@@ -180,10 +180,6 @@ def get_alert_data(
         LEFT JOIN ItemTransaction it
             ON pd.fItemcode = it.fItemcode
 
-            {date_filter}
-
-            {company_filter}
-
         WHERE
 
             (:search = '' OR pd.fItemName LIKE :search)
@@ -191,6 +187,10 @@ def get_alert_data(
             AND pd.fItemcode IS NOT NULL
 
             AND LTRIM(RTRIM(pd.fItemcode)) <> ''
+
+            {date_filter}
+
+            {company_filter}
 
         GROUP BY
 
@@ -227,7 +227,6 @@ def get_alert_data(
 
     with engine.connect() as conn:
 
-        # Fetch records
         result = conn.execute(
             query,
             params
@@ -237,10 +236,9 @@ def get_alert_data(
 
             dict(row._mapping)
 
-            for row in result
+            for row in result.fetchall()
         ]
 
-        # Fetch total count
         total_records = conn.execute(
             count_query,
             params
