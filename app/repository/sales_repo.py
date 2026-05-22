@@ -1094,6 +1094,8 @@ def get_seasonal_insights(
 
     month,
 
+    year,
+
     offset,
 
     limit,
@@ -1104,6 +1106,8 @@ def get_seasonal_insights(
 ):
 
     month_filter = ""
+
+    year_filter = ""
 
     company_filter = ""
 
@@ -1117,6 +1121,16 @@ def get_seasonal_insights(
 
         month_filter = """
         AND DATENAME(MONTH, it.fDate) = :month
+        """
+
+    # ============================================================
+    # YEAR FILTER
+    # ============================================================
+
+    if year:
+
+        year_filter = """
+        AND YEAR(it.fDate) = :year
         """
 
     # ============================================================
@@ -1150,6 +1164,8 @@ def get_seasonal_insights(
 
         DATENAME(MONTH, it.fDate) AS month_name,
 
+        YEAR(it.fDate) AS year_name,
+
         {CATEGORY_CASE} AS category,
 
         SUM(ISNULL(it.fTotQty, 0)) AS total_orders
@@ -1165,6 +1181,8 @@ def get_seasonal_insights(
 
         {month_filter}
 
+        {year_filter}
+
         {company_filter}
 
         {custom_date_filter}
@@ -1172,6 +1190,8 @@ def get_seasonal_insights(
     GROUP BY
 
         DATENAME(MONTH, it.fDate),
+
+        YEAR(it.fDate),
 
         {CATEGORY_CASE}
 
@@ -1203,6 +1223,10 @@ def get_seasonal_insights(
     if month:
 
         params["month"] = month
+
+    if year:
+
+        params["year"] = year
 
     if start_date and end_date:
 

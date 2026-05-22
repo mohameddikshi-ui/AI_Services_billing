@@ -26,6 +26,8 @@ def seasonal_insights(
 
     month: str = None,
 
+    year: int = None,
+
     start_date: str = None,
 
     end_date: str = None
@@ -83,7 +85,7 @@ def seasonal_insights(
 
             "success": False,
 
-            "message": "Invalid company name.",
+            "message": "Invalid company code.",
 
             "error_code": "INVALID_COMPANY_CODE"
         }
@@ -101,6 +103,8 @@ def seasonal_insights(
         pageSize,
 
         month,
+
+        year,
 
         start_date,
 

@@ -20,6 +20,25 @@ from app.constants.thresholds import (
 )
 
 
+# ============================================================
+# INDIAN CURRENCY FORMATTER
+# ============================================================
+
+def format_currency(amount):
+
+    if amount >= 10000000:
+
+        return f"₹{round(amount / 10000000, 2)} Cr"
+
+    elif amount >= 100000:
+
+        return f"₹{round(amount / 100000, 2)} Lakh"
+
+    else:
+
+        return f"₹{round(amount, 2):,}"
+
+
 def generate_auto_insights(
 
     company_code,
@@ -215,7 +234,7 @@ def generate_auto_insights(
             total_orders,
 
             "total_sales":
-            round(total_sales, 2),
+            format_currency(total_sales),
 
             "current_stock":
             current_stock,

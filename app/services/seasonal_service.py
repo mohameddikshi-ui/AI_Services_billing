@@ -21,6 +21,8 @@ def analyze_seasonal_insights(
 
     month,
 
+    year,
+
     start_date=None,
 
     end_date=None
@@ -46,6 +48,8 @@ def analyze_seasonal_insights(
         company_code,
 
         month,
+
+        year,
 
         offset,
 
@@ -113,6 +117,9 @@ def analyze_seasonal_insights(
             "month":
             item.get("month_name"),
 
+            "year":
+            item.get("year_name"),
+
             "category":
             item.get("category"),
 
@@ -150,6 +157,9 @@ def analyze_seasonal_insights(
 
             "month":
             month,
+
+            "year":
+            year,
 
             "start_date":
             start_date,
